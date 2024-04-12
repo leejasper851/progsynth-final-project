@@ -1,0 +1,181 @@
+import numpy as np
+from actor_network import ActorNetwork
+from critic_network import CriticNetwork
+from replay_buffer import ReplayBuffer
+import gymnasium as gym
+import logging
+import torch
+import argparse
+import sys
+import os
+import matplotlib.pyplot as plt
+
+def function_OU(x, mu, theta, sigma):
+    return theta * (mu - x) + sigma * np.random.randn(1)[0]
+
+def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
+    MAX_EPISODE_LEN = 200
+    STATE_DIMS = 3
+    ACTION_DIMS = 1
+    ENV_NAME = "Pendulum-v1"
+    BEST_VAL_IND = 0
+    BEST_VAL_MAX = True
+    BEST_VAL_NAME = "X"
+
+    logging.info(ENV_NAME)
+
+    plot_x = []
+    plot_y = []
+
+    BUFFER_SIZE = 200 * MAX_EPISODE_LEN
+    BATCH_SIZE = 32
+    GAMMA = 0.99
+    TAU = 0.001 # Target network hyperparameters
+    LRA = 0.0001 # Learning rate for actor
+    LRC = 0.001 # Learning rate for critic
+
+    np.random.seed(seeded)
+
+    EXPLORE = 200.0 * MAX_EPISODE_LEN
+    if train_indicator:
+        episode_count = 600
+    else:
+        episode_count = 5
+    epsilon = 1
+    min_epsilon = 0.01
+
+    actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
+    critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)
+    buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
+
+    # Generate an environment
+    env = gym.make(ENV_NAME)
+
+    if not train_indicator:
+        # Now load the weight
+        logging.info("Now we load the weights")
+        try:
+            actor.model.load_state_dict(torch.load(amodel))
+            critic.model.load_state_dict(torch.load(cmodel))
+            actor.target_model.load_state_dict(torch.load(amodel))
+            critic.target_model.load_state_dict(torch.load(cmodel))
+            logging.info("Weights loaded successfully")
+        except:
+            logging.info("Cannot find the weights")
+            exit()
+    
+    logging.info("Experiment start")
+    best_val = float("-inf") if BEST_VAL_MAX else float("inf")
+    best_total_reward = float("-inf")
+
+    logging.info("")
+
+    for i_episode in range(episode_count):
+        logging.info(f"Episode {i_episode}")
+        logging.info(f"Replay Buffer {buff.count()}")
+        logging.info("")
+        ob, _ = env.reset()
+
+        s_t = np.hstack(ob)
+
+        total_reward = 0.0
+
+        while True:
+            loss = 0
+            epsilon -= 1.0 / EXPLORE
+            epsilon = max(epsilon, min_epsilon)
+            a_t = np.zeros([1, ACTION_DIMS])
+            noise_t = np.zeros([1, ACTION_DIMS])
+
+            a_t_original = actor.model.predict(torch.from_numpy(s_t.reshape(1, len(s_t)))).detach().numpy()
+            noise_t[0][0] = train_indicator * max(epsilon, 0) * function_OU(a_t_original[0][0], 0.0, 0.15, 0.2)
+
+            a_t[0][0] = a_t_original[0][0] + noise_t[0][0]
+
+            ob, r_t, term, trunc, _ = env.step(a_t[0])
+            done = term or trunc
+
+            s_t1 = np.hstack(ob)
+
+            buff.add(s_t, a_t[0], r_t, s_t1, done) # Add to replay buffer
+
+            # Do the batch update
+            batch = buff.get_batch(BATCH_SIZE)
+            states = np.asarray([e[0] for e in batch], dtype=np.float32)
+            actions = np.asarray([e[1] for e in batch], dtype=np.float32)
+            rewards = np.asarray([e[2] for e in batch], dtype=np.float32)
+            new_states = np.asarray([e[3] for e in batch], dtype=np.float32)
+            dones = np.asarray([e[4] for e in batch])
+            y_t = np.asarray([e[1] for e in batch], dtype=np.float32)
+
+            target_q_values = critic.target_model.predict(torch.from_numpy(new_states), actor.target_model.predict(torch.from_numpy(new_states))).detach().numpy()
+
+            for k in range(len(batch)):
+                if dones[k]:
+                    y_t[k] = rewards[k]
+                else:
+                    y_t[k] = rewards[k] + GAMMA * target_q_values[k]
+            
+            if train_indicator:
+                loss += critic.model.train_on_batch(torch.from_numpy(states), torch.from_numpy(actions), torch.from_numpy(y_t))
+                a_for_grad = actor.model.predict(torch.from_numpy(states))
+                grads = critic.gradients(states, a_for_grad)
+                actor.train(states, grads)
+                actor.target_train()
+                critic.target_train()
+            
+            total_reward += r_t
+            s_t = s_t1
+
+            best_val = max(best_val, ob[BEST_VAL_IND]) if BEST_VAL_MAX else min(best_val, ob[BEST_VAL_IND])
+            
+            if done:
+                break
+        
+        best_total_reward = max(best_total_reward, total_reward)
+
+        plot_x.append(i_episode)
+        plot_y.append(total_reward)
+
+        logging.info(f"Total Reward {total_reward}, Last State {ob}, Best Total Reward {best_total_reward}, Best {BEST_VAL_NAME} {best_val}")
+
+        if train_indicator and i_episode > 20 and i_episode % 5 == 0:
+            logging.info("Now we save the model")
+            torch.save(actor.model.state_dict(), "run/ddpg_actor_weights_periodic.pt")
+            torch.save(critic.model.state_dict(), "run/ddpg_critic_weights_periodic.pt")
+        
+        logging.info("")
+    
+    env.close() # This is for shutting down the environment
+    logging.info("Finish")
+
+    if train_indicator:
+        plt.plot(plot_x, plot_y)
+        plt.title(f"{ENV_NAME} Training")
+        plt.xlabel("Episode")
+        plt.ylabel("Total Reward")
+        plt.savefig("run/training_plot")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", default=None)
+    parser.add_argument("--mode", default=1, type=int) # 0 - run, 1 - train
+    parser.add_argument("--actormodel", default=None)
+    parser.add_argument("--criticmodel", default=None)
+    parser.add_argument("--logname", default="DDPG")
+    args = parser.parse_args()
+
+    os.makedirs("run/", exist_ok=True)
+
+    log_path = "run"
+    log_filename = args.logname
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s] %(message)s",
+        handlers=[
+            logging.FileHandler("{0}/{1}.log".format(log_path, log_filename)),
+            logging.StreamHandler(sys.stdout)
+        ])
+    logging.info("Logging started with level: INFO")
+
+    run_ddpg(args.actormodel, args.criticmodel, train_indicator=args.mode, seeded=args.seed)
