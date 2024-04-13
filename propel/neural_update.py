@@ -14,11 +14,11 @@ def function_OU(x, mu, theta, sigma):
 class NeuralAgent():
     def __init__(self):
         self.ENV_NAME = "Pendulum-v1"
-        STATE_DIMS = 3
+        self.STATE_DIMS = 3
         self.ACTION_DIMS = 1
         self.MAX_EPISODE_LEN = 200
-        self.ACTION_MIN = -2
-        self.ACTION_MAX = 2
+        self.ACTION_MIN = (-2,)
+        self.ACTION_MAX = (2,)
         self.BEST_VAL_IND = 0
         self.BEST_VAL_NAME = "X"
 
@@ -29,8 +29,8 @@ class NeuralAgent():
         self.batch_size = 32
         self.lambda_mix = 10.0
 
-        self.actor = ActorNetwork(STATE_DIMS, self.ACTION_DIMS, TAU, LRA)
-        self.critic = CriticNetwork(STATE_DIMS, self.ACTION_DIMS, TAU, LRC)
+        self.actor = ActorNetwork(self.STATE_DIMS, self.ACTION_DIMS, TAU, LRA)
+        self.critic = CriticNetwork(self.STATE_DIMS, self.ACTION_DIMS, TAU, LRC)
         self.buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
 
     def update_neural(self, controllers, episode_count=200, tree=False):
@@ -70,9 +70,10 @@ class NeuralAgent():
                 if tree:
                     tree_obs = [sensor for obs in temp_obs[:-1] for sensor in obs]
                     act_tree = controllers.predict([tree_obs])
-                    action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN, self.ACTION_MAX)
+                    action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
                 else:
-                    action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN, self.ACTION_MAX)
+                    action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
+                
                 action_prior = [action_action]
 
                 temp_obs = [[ob[i]] for i in range(len(ob))] + [action_prior]
@@ -89,7 +90,7 @@ class NeuralAgent():
 
                 a_t[0][0] = a_t_original[0][0] + noise_t[0][0]
 
-                mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(1)]
+                mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(self.ACTION_DIMS)]
 
                 ob, r_t, term, trunc, _ = env.step(mixed_act)
                 done = term or trunc
@@ -180,9 +181,10 @@ class NeuralAgent():
             if tree:
                 tree_obs = [sensor for obs in temp_obs[:-1] for sensor in obs]
                 act_tree = controllers.predict([tree_obs])
-                action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN, self.ACTION_MAX)
+                action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
             else:
-                action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN, self.ACTION_MAX)
+                action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
+            
             action_prior = [action_action]
 
             temp_obs = [[ob[i]] for i in range(len(ob))] + [action_prior]
@@ -192,7 +194,7 @@ class NeuralAgent():
             epsilon -= 1.0 / EXPLORE
             epsilon = max(epsilon, min_epsilon)
             a_t = self.actor.model.predict(torch.from_numpy(s_t.reshape(1, len(s_t)))).detach().numpy()
-            mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(1)]
+            mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(self.ACTION_DIMS)]
 
             if tree:
                 new_obs = [item for sublist in temp_obs[:-1] for item in sublist]
@@ -237,3 +239,29 @@ class NeuralAgent():
         env.close()
         
         return observation_list, actions_list
+
+    def label_data(self, controllers, observation_list, tree=False):
+        if not tree:
+            action_prog = controllers[0]
+        actions_list = []
+        net_obs_list = []
+        logging.info(f"Data labeling started with Lambda {self.lambda_mix}")
+        for window_list in observation_list:
+            if tree:
+                act_tree = controllers.predict([window_list])
+                action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
+                net_obs_list.append(window_list)
+            else:
+                action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
+                net_obs = [sensor for obs in window_list[-1] for sensor in obs]
+                net_obs_list.append(net_obs[:self.STATE_DIMS])
+            
+            action_prior = [action_action]
+
+            s_t = np.hstack([[net_obs[:self.STATE_DIMS]]])
+            a_t = self.actor.model.predict(s_t.reshape(1, self.STATE_DIMS))
+            mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(self.ACTION_DIMS)]
+
+            actions_list.append(mixed_act[:])
+        
+        return net_obs_list, observation_list, actions_list
