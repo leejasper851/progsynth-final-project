@@ -13,7 +13,7 @@ class CriticNetwork():
         self.target_model = self.create_critic_network(state_size, action_size, LEARNING_RATE)
 
     def gradients(self, states, actions):
-        self.model.eval()
+        self.model.train()
         return torch.autograd.grad(self.model(torch.from_numpy(states), actions), actions, grad_outputs=torch.ones(len(states), 1))
 
     def target_train(self):
@@ -50,7 +50,7 @@ class CriticModel(nn.Module):
         return self.V(SA)
     
     def predict(self, S, A):
-        self.eval()
+        # self.eval()
         return self(S, A)
     
     def train_on_batch(self, S, A, y_t):

@@ -14,7 +14,7 @@ class ActorNetwork:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=LEARNING_RATE)
     
     def train(self, states, action_grads):
-        self.model.eval()
+        self.model.train()
         params_grad = torch.autograd.grad(self.model(torch.from_numpy(states)), self.model.parameters(), grad_outputs=tuple([-e for e in action_grads]))
         self.optimizer.zero_grad()
         for param, param_grad in zip(self.model.parameters(), params_grad):
@@ -48,6 +48,6 @@ class ActorModel(nn.Module):
         S = self.h1_relu(self.h1(S))
         return 2 * self.V_tanh(self.V(S))
     
-    def predict(self, S):
-        self.eval()
+    def predict(self, S): # TODO: figure out when to train() vs. eval() and no_grad()
+        # self.eval()
         return self(S)

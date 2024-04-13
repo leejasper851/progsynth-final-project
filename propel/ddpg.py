@@ -81,7 +81,6 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         total_reward = 0.0
 
         while True:
-            loss = 0
             epsilon -= 1.0 / EXPLORE
             epsilon = max(epsilon, min_epsilon)
             a_t = np.zeros([1, ACTION_DIMS])
@@ -117,7 +116,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
                     y_t[k] = rewards[k] + GAMMA * target_q_values[k]
             
             if train_indicator:
-                loss += critic.model.train_on_batch(torch.from_numpy(states), torch.from_numpy(actions), torch.from_numpy(y_t))
+                critic.model.train_on_batch(torch.from_numpy(states), torch.from_numpy(actions), torch.from_numpy(y_t))
                 a_for_grad = actor.model.predict(torch.from_numpy(states))
                 grads = critic.gradients(states, a_for_grad)
                 actor.train(states, grads)
@@ -141,8 +140,8 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
 
         if train_indicator and i_episode > 20 and i_episode % 5 == 0:
             logging.info("Now we save the model")
-            torch.save(actor.model.state_dict(), "run/ddpg_actor_weights_periodic.pt")
-            torch.save(critic.model.state_dict(), "run/ddpg_critic_weights_periodic.pt")
+            torch.save(actor.model.state_dict(), "run_ddpg/ddpg_actor_weights_periodic.pt")
+            torch.save(critic.model.state_dict(), "run_ddpg/ddpg_critic_weights_periodic.pt")
         
         logging.info("")
     
@@ -154,7 +153,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         plt.title(f"{ENV_NAME} Training")
         plt.xlabel("Episode")
         plt.ylabel("Total Reward")
-        plt.savefig("run/training_plot")
+        plt.savefig("run_ddpg/training_plot")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -165,9 +164,9 @@ if __name__ == "__main__":
     parser.add_argument("--logname", default="DDPG")
     args = parser.parse_args()
 
-    os.makedirs("run/", exist_ok=True)
+    os.makedirs("run_ddpg/", exist_ok=True)
 
-    log_path = "run"
+    log_path = "run_ddpg"
     log_filename = args.logname
     logging.basicConfig(
         level=logging.INFO,
