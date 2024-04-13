@@ -4,7 +4,7 @@ from critic_network import CriticNetwork
 from replay_buffer import ReplayBuffer
 import gymnasium as gym
 import logging
-from utils import *
+import utils
 import torch
 import copy
 
@@ -70,9 +70,9 @@ class NeuralAgent():
                 if tree:
                     tree_obs = [sensor for obs in temp_obs[:-1] for sensor in obs]
                     act_tree = controllers.predict([tree_obs])
-                    action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
+                    action_action = utils.clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
                 else:
-                    action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
+                    action_action = utils.clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
                 
                 action_prior = [action_action]
 
@@ -181,9 +181,9 @@ class NeuralAgent():
             if tree:
                 tree_obs = [sensor for obs in temp_obs[:-1] for sensor in obs]
                 act_tree = controllers.predict([tree_obs])
-                action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
+                action_action = utils.clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
             else:
-                action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
+                action_action = utils.clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
             
             action_prior = [action_action]
 
@@ -249,10 +249,10 @@ class NeuralAgent():
         for window_list in observation_list:
             if tree:
                 act_tree = controllers.predict([window_list])
-                action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
+                action_action = utils.clip_to_range(act_tree[0][0], self.ACTION_MIN[0], self.ACTION_MAX[0])
                 net_obs_list.append(window_list)
             else:
-                action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
+                action_action = utils.clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN[0], self.ACTION_MAX[0])
                 net_obs = [sensor for obs in window_list[-1] for sensor in obs]
                 net_obs_list.append(net_obs[:self.STATE_DIMS])
             
