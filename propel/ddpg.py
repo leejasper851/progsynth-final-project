@@ -27,7 +27,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     plot_x = []
     plot_y = []
 
-    BUFFER_SIZE = 200 * MAX_EPISODE_LEN
+    BUFFER_SIZE = 100 * MAX_EPISODE_LEN
     BATCH_SIZE = 32
     GAMMA = 0.99
     TAU = 0.001 # Target network hyperparameters
