@@ -52,8 +52,7 @@ class NeuralAgent():
         lambda_max = 40.0
         factor = 0.8
 
-        logging.info(self.ENV_NAME)
-        logging.info("Experiment start")
+        logging.info(f"{self.ENV_NAME} experiment start with Lambda {self.lambda_mix}")
 
         for i_episode in range(episode_count):
             logging.info(f"Episode {i_episode}")
@@ -141,9 +140,100 @@ class NeuralAgent():
                 raise AssertionError("\"max_steps\" has been reached.")
             
             self.lambda_mix = np.mean(lambda_store) # TODO: lambda mix affected by max_steps?
+
             logging.info(f"Total Reward {total_reward}, {self.BEST_VAL_NAME} {ob[self.BEST_VAL_IND]}, Last State {ob}, Lambda Mix {self.lambda_mix}")
             logging.info("")
         
         env.close() # This is for shutting down the environment
         logging.info("Finish")
         return None
+
+    def collect_data(self, controllers, tree=False):
+        GAMMA = 0.99
+        EXPLORE = 200.0 * self.MAX_EPISODE_LEN
+        max_steps = 2 * self.MAX_EPISODE_LEN
+        done = False
+        epsilon = 1
+        min_epsilon = 0.01
+
+        if not tree:
+            action_prog = controllers[0]
+        
+        # Generate an environment
+        env = gym.make(self.ENV_NAME)
+
+        window = 5
+
+        logging.info(f"{self.ENV_NAME} collection start with Lambda {self.lambda_mix}")
+        ob, _ = env.reset()
+
+        s_t = np.hstack(ob)
+
+        total_reward = 0.0
+        temp_obs = [[ob[i]] for i in range(len(ob))] + [[0]]
+        window_list = [temp_obs[:] for _ in range(window)]
+
+        observation_list = []
+        actions_list = []
+
+        for _ in range(max_steps):
+            if tree:
+                tree_obs = [sensor for obs in temp_obs[:-1] for sensor in obs]
+                act_tree = controllers.predict([tree_obs])
+                action_action = clip_to_range(act_tree[0][0], self.ACTION_MIN, self.ACTION_MAX)
+            else:
+                action_action = clip_to_range(action_prog.pid_execute(window_list), self.ACTION_MIN, self.ACTION_MAX)
+            action_prior = [action_action]
+
+            temp_obs = [[ob[i]] for i in range(len(ob))] + [action_prior]
+            window_list.pop(0)
+            window_list.append(temp_obs[:])
+
+            epsilon -= 1.0 / EXPLORE
+            epsilon = max(epsilon, min_epsilon)
+            a_t = self.actor.model.predict(torch.from_numpy(s_t.reshape(1, len(s_t)))).detach().numpy()
+            mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(1)]
+
+            if tree:
+                new_obs = [item for sublist in temp_obs[:-1] for item in sublist]
+                observation_list.append(new_obs[:])
+            else:
+                observation_list.append(window_list[:])
+            actions_list.append(mixed_act[:])
+
+            ob, r_t, term, trunc, _ = env.step(mixed_act)
+            done = term or trunc
+
+            s_t1 = np.hstack(ob)
+
+            self.buff.add(s_t, a_t[0], r_t, s_t1, done) # Add to replay buffer
+
+            # Do the batch update
+            batch = self.buff.get_batch(self.batch_size)
+            rewards = np.asarray([e[2] for e in batch], dtype=np.float32)
+            new_states = np.asarray([e[3] for e in batch], dtype=np.float32)
+            dones = np.asarray([e[4] for e in batch])
+            y_t = np.asarray([e[1] for e in batch], dtype=np.float32)
+
+            target_q_values = self.critic.target_model.predict(torch.from_numpy(new_states), self.actor.target_model.predict(torch.from_numpy(new_states))).detach().numpy()
+
+            for k in range(len(batch)):
+                if dones[k]:
+                    y_t[k] = rewards[k]
+                else:
+                    y_t[k] = rewards[k] + GAMMA * target_q_values[k]
+            
+            total_reward += r_t
+            s_t = s_t1
+            
+            if done:
+                break
+        else:
+            raise AssertionError("\"max_steps\" has been reached.")
+        
+        logging.info(f"Total Reward {total_reward}, {self.BEST_VAL_NAME} {ob[self.BEST_VAL_IND]}, Last State {ob}")
+        logging.info("")
+        
+        env.close()
+        
+        return observation_list, actions_list

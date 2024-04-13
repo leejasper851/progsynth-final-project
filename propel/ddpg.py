@@ -41,6 +41,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         episode_count = 600
     else:
         episode_count = 5
+    max_steps = 2 * MAX_EPISODE_LEN
     epsilon = 1
     min_epsilon = 0.01
 
@@ -64,7 +65,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
             logging.info("Cannot find the weights")
             exit()
     
-    logging.info("Experiment start")
+    logging.info(f"{ENV_NAME} experiment start")
     best_val = float("-inf") if BEST_VAL_MAX else float("inf")
     best_total_reward = float("-inf")
 
@@ -80,7 +81,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
 
         total_reward = 0.0
 
-        while True:
+        for _ in range(max_steps):
             epsilon -= 1.0 / EXPLORE
             epsilon = max(epsilon, min_epsilon)
             a_t = np.zeros([1, ACTION_DIMS])
@@ -130,6 +131,8 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
             
             if done:
                 break
+        else:
+            raise AssertionError("\"max_steps\" has been reached.")
         
         best_total_reward = max(best_total_reward, total_reward)
 
