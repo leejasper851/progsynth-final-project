@@ -14,10 +14,10 @@ def function_OU(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)[0]
 
 def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
-    MAX_EPISODE_LEN = 200
+    ENV_NAME = "Pendulum-v1"
     STATE_DIMS = 3
     ACTION_DIMS = 1
-    ENV_NAME = "Pendulum-v1"
+    MAX_EPISODE_LEN = 200
     BEST_VAL_IND = 0
     BEST_VAL_MAX = True
     BEST_VAL_NAME = "X"
@@ -136,7 +136,8 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         plot_x.append(i_episode)
         plot_y.append(total_reward)
 
-        logging.info(f"Total Reward {total_reward}, Last State {ob}, Best Total Reward {best_total_reward}, Best {BEST_VAL_NAME} {best_val}")
+        logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}")
+        logging.info(f"Best Total Reward {best_total_reward}, Best {BEST_VAL_NAME} {best_val}")
 
         if train_indicator and i_episode > 20 and i_episode % 5 == 0:
             logging.info("Now we save the model")
