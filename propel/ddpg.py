@@ -149,6 +149,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     
     env.close() # This is for shutting down the environment
     logging.info("Finish")
+    logging.info("")
 
     if train_indicator:
         plt.plot(plot_x, plot_y)

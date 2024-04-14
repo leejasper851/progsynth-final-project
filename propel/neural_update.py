@@ -147,6 +147,7 @@ class NeuralAgent():
         
         env.close() # This is for shutting down the environment
         logging.info("Finish")
+        logging.info("")
         return None
 
     def collect_data(self, controllers, tree=False):
@@ -259,9 +260,9 @@ class NeuralAgent():
             action_prior = [action_action]
 
             s_t = np.hstack([[net_obs[:STATE_DIMS]]])
-            a_t = self.actor.model.predict(s_t.reshape(1, STATE_DIMS))
+            a_t = self.actor.model.predict(torch.from_numpy(s_t.reshape(1, STATE_DIMS))).detach().numpy()
             mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(ACTION_DIMS)]
 
             actions_list.append(mixed_act[:])
         
-        return net_obs_list, observation_list, actions_list
+        return net_obs_list, observation_list, actions_list # TODO: only return actions_list?
