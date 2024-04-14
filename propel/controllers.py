@@ -7,8 +7,8 @@ class Controller():
         self.pid_sensor = pid_sensor
         self.pid_sub_sensor = pid_sub_sensor
         self.pid_increment = pid_increment
-        self.para_condition = para_condition # TODO: remove?
-        self.condition = condition # TODO: change to boolean?
+        self.para_condition = para_condition
+        self.condition = condition
         self.final_target = pid_target
     
     def fold_pid(self, acc, lobs):
