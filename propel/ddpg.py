@@ -10,20 +10,18 @@ import sys
 import os
 import matplotlib.pyplot as plt
 
+ENV_NAME = "Pendulum-v1"
+STATE_DIMS = 3
+ACTION_DIMS = 1
+MAX_EPISODE_LEN = 200
+BEST_VAL_IND = 0
+BEST_VAL_MAX = True
+BEST_VAL_NAME = "X"
+
 def function_OU(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)[0]
 
 def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
-    ENV_NAME = "Pendulum-v1"
-    STATE_DIMS = 3
-    ACTION_DIMS = 1
-    MAX_EPISODE_LEN = 200
-    BEST_VAL_IND = 0
-    BEST_VAL_MAX = True
-    BEST_VAL_NAME = "X"
-
-    logging.info(ENV_NAME)
-
     plot_x = []
     plot_y = []
 
