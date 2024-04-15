@@ -22,7 +22,7 @@ def function_OU(x, mu, theta, sigma):
 
 class NeuralAgent():
     def __init__(self):
-        BUFFER_SIZE = 100 * MAX_EPISODE_LEN
+        BUFFER_SIZE = 50 * MAX_EPISODE_LEN
         TAU = 0.001 # Target network hyperparameters
         LRA = 0.0001 # Learning rate for actor
         LRC = 0.001 # Learning rate for critic
@@ -35,11 +35,11 @@ class NeuralAgent():
 
     def update_neural(self, controllers, episode_count=200, tree=False):
         GAMMA = 0.99
-        EXPLORE = 200.0 * MAX_EPISODE_LEN
+        EXPLORE = 50.0 * MAX_EPISODE_LEN
         max_steps = 2 * MAX_EPISODE_LEN
         done = False
         epsilon = 1
-        min_epsilon = 0.01
+        min_epsilon = 0
 
         if not tree:
             action_prog = controllers[0]

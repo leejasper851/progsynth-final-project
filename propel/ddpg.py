@@ -25,7 +25,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     plot_x = []
     plot_y = []
 
-    BUFFER_SIZE = 100 * MAX_EPISODE_LEN
+    BUFFER_SIZE = 50 * MAX_EPISODE_LEN
     BATCH_SIZE = 32
     GAMMA = 0.99
     TAU = 0.001 # Target network hyperparameters
@@ -34,14 +34,14 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
 
     np.random.seed(seeded)
 
-    EXPLORE = 200.0 * MAX_EPISODE_LEN
+    EXPLORE = 50.0 * MAX_EPISODE_LEN
     if train_indicator:
         episode_count = 600
     else:
         episode_count = 5
     max_steps = 2 * MAX_EPISODE_LEN
     epsilon = 1
-    min_epsilon = 0.01
+    min_epsilon = 0
 
     actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
     critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)

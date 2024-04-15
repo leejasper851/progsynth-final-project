@@ -94,11 +94,11 @@ def learn_policy():
     nn_agent = NeuralAgent()
     all_observations = []
     all_actions = []
-    for i_iter in range(1):
+    for i_iter in range(6):
         logging.info(f"Iteration {i_iter}")
         # Learn/update neural policy
         if i_iter == 0:
-            nn_agent.update_neural([action_prog], episode_count=2)
+            nn_agent.update_neural([action_prog], episode_count=200)
         else:
             nn_agent.update_neural([action_prog], episode_count=100)
         
