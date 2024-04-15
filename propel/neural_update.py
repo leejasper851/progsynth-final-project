@@ -1,12 +1,13 @@
 import numpy as np
+import gymnasium as gym
+import logging
+import torch
+import copy
+
 from actor_network import ActorNetwork
 from critic_network import CriticNetwork
 from replay_buffer import ReplayBuffer
-import gymnasium as gym
-import logging
 import utils
-import torch
-import copy
 
 ENV_NAME = "Pendulum-v1"
 STATE_DIMS = 3
@@ -27,7 +28,8 @@ class NeuralAgent():
         LRA = 0.0001 # Learning rate for actor
         LRC = 0.001 # Learning rate for critic
         self.batch_size = 32
-        self.lambda_mix = 10.0
+        # self.lambda_mix = 10.0
+        self.lambda_mix = 0.0 #TODO: change back
 
         self.actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
         self.critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)
@@ -140,7 +142,8 @@ class NeuralAgent():
             else:
                 raise AssertionError("\"max_steps\" has been reached.")
             
-            self.lambda_mix = np.mean(lambda_store) # TODO: lambda mix affected by max_steps?
+            # self.lambda_mix = np.mean(lambda_store[:(j_iter + 1)])
+            self.lambda_mix = 0 #TODO: change back
 
             logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}, Lambda Mix {self.lambda_mix}")
             logging.info("")

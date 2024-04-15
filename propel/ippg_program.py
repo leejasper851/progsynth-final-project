@@ -1,16 +1,17 @@
-import utils
 import numpy as np
 from scipy import spatial
 import logging
 from bayes_opt import BayesianOptimization
 from bayes_opt.util import UtilityFunction
 import gymnasium as gym
-from controllers import Controller
-from neural_update import NeuralAgent
 import argparse
 import random
 import sys
 import os
+
+import utils
+from controllers import Controller
+from neural_update import NeuralAgent
 
 ENV_NAME = "Pendulum-v1"
 MAX_EPISODE_LEN = 200
@@ -18,6 +19,19 @@ ACTION_MIN = (-2,)
 ACTION_MAX = (2,)
 BEST_VAL_IND = 0
 BEST_VAL_NAME = "X"
+
+# TODO: list
+# env render to understand env
+# change env to include theta
+# possibly add two more parameters (like in acceleration)
+# save and load model for quick testing
+# initialize parameters for sensible policy (test)
+# change initialized parameters
+# figure out lambda mixing stuff
+# check whether 1 run for collection is enough
+# adjust bayesian optimization action ranges
+# change logging to include bayesian optimization results and current neural_update iteration
+# test for multiple iterations
 
 class ParameterFinder():
     def __init__(self, inputs, actions, action_prog):
@@ -94,7 +108,8 @@ def learn_policy():
     nn_agent = NeuralAgent()
     all_observations = []
     all_actions = []
-    for i_iter in range(6):
+    # for i_iter in range(6):
+    for i_iter in range(1):
         logging.info(f"Iteration {i_iter}")
         # Learn/update neural policy
         if i_iter == 0:

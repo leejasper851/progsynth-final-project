@@ -1,7 +1,4 @@
 import numpy as np
-from actor_network import ActorNetwork
-from critic_network import CriticNetwork
-from replay_buffer import ReplayBuffer
 import gymnasium as gym
 import logging
 import torch
@@ -9,14 +6,19 @@ import argparse
 import sys
 import os
 import matplotlib.pyplot as plt
+from pendulum import PendulumThetaEnv
+
+from actor_network import ActorNetwork
+from critic_network import CriticNetwork
+from replay_buffer import ReplayBuffer
 
 ENV_NAME = "Pendulum-v1"
-STATE_DIMS = 3
+STATE_DIMS = 2
 ACTION_DIMS = 1
 MAX_EPISODE_LEN = 200
 BEST_VAL_IND = 0
 BEST_VAL_MAX = True
-BEST_VAL_NAME = "X"
+BEST_VAL_NAME = "Theta"
 
 def function_OU(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)[0]
@@ -48,7 +50,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
 
     # Generate an environment
-    env = gym.make(ENV_NAME)
+    env = PendulumThetaEnv(gym.make(ENV_NAME))
 
     if not train_indicator:
         # Now load the weight
@@ -162,8 +164,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=None)
     parser.add_argument("--mode", default=1, type=int) # 0 - run, 1 - train
-    parser.add_argument("--actormodel", default=None)
-    parser.add_argument("--criticmodel", default=None)
+    parser.add_argument("--actormodel", default="run_ddpg/ddpg_actor_weights_periodic.pt")
+    parser.add_argument("--criticmodel", default="run_ddpg/ddpg_critic_weights_periodic.pt")
     parser.add_argument("--logname", default="DDPG")
     args = parser.parse_args()
 
