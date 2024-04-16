@@ -8,15 +8,16 @@ from actor_network import ActorNetwork
 from critic_network import CriticNetwork
 from replay_buffer import ReplayBuffer
 import utils
+from pendulum import PendulumThetaEnv
 
 ENV_NAME = "Pendulum-v1"
-STATE_DIMS = 3
+STATE_DIMS = 2
 ACTION_DIMS = 1
 MAX_EPISODE_LEN = 200
 ACTION_MIN = (-2,)
 ACTION_MAX = (2,)
 BEST_VAL_IND = 0
-BEST_VAL_NAME = "X"
+BEST_VAL_NAME = "Theta"
 
 def function_OU(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)[0]
@@ -28,14 +29,21 @@ class NeuralAgent():
         LRA = 0.0001 # Learning rate for actor
         LRC = 0.001 # Learning rate for critic
         self.batch_size = 32
-        # self.lambda_mix = 10.0
-        self.lambda_mix = 0.0 #TODO: change back
+        self.lambda_mix = 10.0
+        # self.lambda_mix = 1.0 #TODO: change back
 
         self.actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
         self.critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)
         self.buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
 
     def update_neural(self, controllers, episode_count=200, tree=False):
+        # TODO: delete
+        # self.actor.model.load_state_dict(torch.load("run_ddpg3/ddpg_actor_weights_periodic.pt"))
+        # self.critic.model.load_state_dict(torch.load("run_ddpg3/ddpg_critic_weights_periodic.pt"))
+        # self.actor.target_model.load_state_dict(torch.load("run_ddpg3/ddpg_actor_weights_periodic.pt"))
+        # self.critic.target_model.load_state_dict(torch.load("run_ddpg3/ddpg_critic_weights_periodic.pt"))
+        # return None
+
         GAMMA = 0.99
         EXPLORE = 50.0 * MAX_EPISODE_LEN
         max_steps = 2 * MAX_EPISODE_LEN
@@ -47,7 +55,7 @@ class NeuralAgent():
             action_prog = controllers[0]
         
         # Generate an environment
-        env = gym.make(ENV_NAME)
+        env = PendulumThetaEnv(gym.make(ENV_NAME))
 
         window = 5
         lambda_store = np.zeros((max_steps, 1))
@@ -142,8 +150,8 @@ class NeuralAgent():
             else:
                 raise AssertionError("\"max_steps\" has been reached.")
             
-            # self.lambda_mix = np.mean(lambda_store[:(j_iter + 1)])
-            self.lambda_mix = 0 #TODO: change back
+            self.lambda_mix = np.mean(lambda_store[:(j_iter + 1)])
+            # self.lambda_mix = 1.0 #TODO: change back
 
             logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}, Lambda Mix {self.lambda_mix}")
             logging.info("")
@@ -165,7 +173,7 @@ class NeuralAgent():
             action_prog = controllers[0]
         
         # Generate an environment
-        env = gym.make(ENV_NAME)
+        env = PendulumThetaEnv(gym.make(ENV_NAME))
 
         window = 5
 
