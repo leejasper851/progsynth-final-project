@@ -26,13 +26,13 @@ BEST_VAL_NAME = "Theta"
 # DONE change env to include theta
 # DONE possibly add two more parameters (like in acceleration)
 # DONE initialize parameters for sensible policy (test)
-# save and load model for quick testing
-# change initialized parameters
-# adjust bayesian optimization action ranges
+# DONE save and load model for quick testing
+# DONE change initialized parameters
+# DONE adjust bayesian optimization action ranges
 # figure out lambda mixing stuff
-# check whether 1 run for collection is enough
+# DONE check whether 1 run for collection is enough
 # change logging to include bayesian optimization results and current neural_update iteration
-# test for multiple iterations
+# DONE test for multiple iterations
 
 class ParameterFinder():
     def __init__(self, inputs, actions, action_prog):
@@ -68,6 +68,7 @@ def programmatic_game(action):
     env = PendulumThetaEnv(gym.make(ENV_NAME))
 
     logging.info(f"{ENV_NAME} experiment start with priors")
+    logging.info(f"Steering controller {action.pid_info()}")
     for _ in range(episode_count):
         ob, _ = env.reset()
 
@@ -103,16 +104,18 @@ def programmatic_game(action):
 def learn_policy():
     # Define pi_0
     # action_prog = Controller([5, 0.5, 50], 0, 0, 0, 2 * np.pi, 0.0, "obs[-1][1][0] > self.para_condition") # TODO: change initial values?
-    action_prog = Controller([1, 0.05, 50], 0, 0, 0, 2 * np.pi, 0.0, "obs[-1][1][0] > self.para_condition")
+    # action_prog = Controller([1, 0.05, 50], 0, 0, 0, 2 * np.pi, 0.0, "obs[-1][1][0] > self.para_condition")
+    action_prog = Controller([0, 0.5, 50], 0, 0, 0, 2 * np.pi, 0.0, "obs[-1][1][0] > self.para_condition")
 
     programmatic_game(action_prog)
 
-    nn_agent = NeuralAgent()
+    nn_agent = NeuralAgent() # TODO: reset neural agent each step?
     all_observations = []
     all_actions = []
     # for i_iter in range(6):
-    for i_iter in range(20): # TODO: delete?
+    for i_iter in range(10): # TODO: delete?
         logging.info(f"Iteration {i_iter}")
+        # nn_agent = NeuralAgent() #TODO: delete?
         # Learn/update neural policy
         if i_iter == 0:
             nn_agent.update_neural([action_prog], episode_count=200)
@@ -130,6 +133,8 @@ def learn_policy():
         param_finder = ParameterFinder(all_observations, all_actions, action_prog)
 
         action_ranges = [tuple([utils.create_interval(action_prog.pid_info()[0][const], 0.2) for const in range(3)]), utils.create_interval(action_prog.pid_info()[1], 0.01), utils.create_interval(action_prog.pid_info()[2], 0.01), utils.create_interval(action_prog.pid_info()[3], 0.01)]
+        # action_ranges = [tuple([utils.create_interval(action_prog.pid_info()[0][const], 1) for const in range(3)]), utils.create_interval(action_prog.pid_info()[1], 0.01), utils.create_interval(action_prog.pid_info()[2], 0.01), utils.create_interval(action_prog.pid_info()[3], 0.01)]
+        # action_ranges = [tuple([utils.create_interval(action_prog.pid_info()[0][0], 1), utils.create_interval(action_prog.pid_info()[0][1], 0.2), utils.create_interval(action_prog.pid_info()[0][2], 0.2)]), utils.create_interval(action_prog.pid_info()[1], 0.01), utils.create_interval(action_prog.pid_info()[2], 0.01), utils.create_interval(action_prog.pid_info()[3], 0.01)]
         pid_ranges = [action_ranges]
         new_paras = param_finder.pid_parameters(pid_ranges)
 
@@ -137,7 +142,7 @@ def learn_policy():
 
         programmatic_game(action_prog)
 
-    logging.info(f"Steering controller {action_prog.pid_info()}")
+    logging.info(f"Final steering controller {action_prog.pid_info()}")
 
     return None
 

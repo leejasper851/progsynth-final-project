@@ -29,8 +29,9 @@ class NeuralAgent():
         LRA = 0.0001 # Learning rate for actor
         LRC = 0.001 # Learning rate for critic
         self.batch_size = 32
-        self.lambda_mix = 10.0
-        # self.lambda_mix = 1.0 #TODO: change back
+        # self.lambda_mix = 10.0
+        self.lambda_mix = 1.0 #TODO: change back
+        # self.lambda_mix = 0.5
 
         self.actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
         self.critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)
@@ -150,8 +151,10 @@ class NeuralAgent():
             else:
                 raise AssertionError("\"max_steps\" has been reached.")
             
-            self.lambda_mix = np.mean(lambda_store[:(j_iter + 1)])
+            # self.lambda_mix = np.mean(lambda_store[:(j_iter + 1)])
             # self.lambda_mix = 1.0 #TODO: change back
+            # self.lambda_mix += (3.5 - 0) / (200 + 100 * 5)
+            self.lambda_mix += (1 - 0.5) / (200 + 100 * 9)
 
             logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}, Lambda Mix {self.lambda_mix}")
             logging.info("")
