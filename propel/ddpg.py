@@ -12,7 +12,7 @@ from actor_network import ActorNetwork
 from critic_network import CriticNetwork
 from replay_buffer import ReplayBuffer
 
-ENV_NAME = "Pendulum-v1"
+ENV_NAME = "Pendulum-v1" #TODO: move global variables to config file
 STATE_DIMS = 2
 ACTION_DIMS = 1
 MAX_EPISODE_LEN = 200
@@ -24,9 +24,6 @@ def function_OU(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)[0]
 
 def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
-    plot_x = []
-    plot_y = []
-
     BUFFER_SIZE = 50 * MAX_EPISODE_LEN
     BATCH_SIZE = 32
     GAMMA = 0.99
@@ -40,7 +37,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     if train_indicator:
         episode_count = 600
     else:
-        episode_count = 5
+        episode_count = 1000
     max_steps = 2 * MAX_EPISODE_LEN
     epsilon = 1
     min_epsilon = 0
@@ -50,7 +47,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
 
     # Generate an environment
-    env = PendulumThetaEnv(gym.make(ENV_NAME))
+    env = PendulumThetaEnv(gym.make(ENV_NAME)) #TODO: make more general everywhere
 
     if not train_indicator:
         # Now load the weight
@@ -68,8 +65,12 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
     logging.info(f"{ENV_NAME} experiment start")
     best_val = float("-inf") if BEST_VAL_MAX else float("inf")
     best_total_reward = float("-inf")
+    avg_total_reward = 0
 
     logging.info("")
+
+    plot_x = []
+    plot_y = []
 
     for i_episode in range(episode_count):
         logging.info(f"Episode {i_episode}")
@@ -135,6 +136,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
             raise AssertionError("\"max_steps\" has been reached.")
         
         best_total_reward = max(best_total_reward, total_reward)
+        avg_total_reward += total_reward
 
         plot_x.append(i_episode)
         plot_y.append(total_reward)
@@ -150,12 +152,14 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         logging.info("")
     
     env.close() # This is for shutting down the environment
+    avg_total_reward /= episode_count
+    logging.info(f"Average Total Reward {avg_total_reward} (over {episode_count} episodes)")
     logging.info("Finish")
     logging.info("")
 
     if train_indicator:
         plt.plot(plot_x, plot_y)
-        plt.title(f"{ENV_NAME} Training")
+        plt.title(f"{ENV_NAME} DDPG Training")
         plt.xlabel("Episode")
         plt.ylabel("Total Reward")
         plt.savefig("run_ddpg/training_plot")

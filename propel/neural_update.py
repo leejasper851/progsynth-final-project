@@ -29,22 +29,13 @@ class NeuralAgent():
         LRA = 0.0001 # Learning rate for actor
         LRC = 0.001 # Learning rate for critic
         self.batch_size = 32
-        # self.lambda_mix = 10.0
-        self.lambda_mix = 1.0 #TODO: change back
-        # self.lambda_mix = 0.5
+        self.lambda_mix = 1.0
 
         self.actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
         self.critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)
         self.buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
 
-    def update_neural(self, controllers, episode_count=200, tree=False):
-        # TODO: delete
-        # self.actor.model.load_state_dict(torch.load("run_ddpg3/ddpg_actor_weights_periodic.pt"))
-        # self.critic.model.load_state_dict(torch.load("run_ddpg3/ddpg_critic_weights_periodic.pt"))
-        # self.actor.target_model.load_state_dict(torch.load("run_ddpg3/ddpg_actor_weights_periodic.pt"))
-        # self.critic.target_model.load_state_dict(torch.load("run_ddpg3/ddpg_critic_weights_periodic.pt"))
-        # return None
-
+    def update_neural(self, controllers, ippg_iter, episode_count=200, tree=False):
         GAMMA = 0.99
         EXPLORE = 50.0 * MAX_EPISODE_LEN
         max_steps = 2 * MAX_EPISODE_LEN
@@ -59,14 +50,14 @@ class NeuralAgent():
         env = PendulumThetaEnv(gym.make(ENV_NAME))
 
         window = 5
-        lambda_store = np.zeros((max_steps, 1))
-        lambda_max = 40.0
-        factor = 0.8
+        # lambda_store = np.zeros((max_steps, 1))
+        # lambda_max = 40.0
+        # factor = 0.8
 
         logging.info(f"{ENV_NAME} experiment start with Lambda {self.lambda_mix}")
 
         for i_episode in range(episode_count):
-            logging.info(f"Episode {i_episode}")
+            logging.info(f"Iteration {ippg_iter}, Episode {i_episode}")
             logging.info(f"Replay Buffer {self.buff.count()}")
             logging.info("")
             ob, _ = env.reset()
@@ -77,7 +68,7 @@ class NeuralAgent():
             temp_obs = [[ob[i]] for i in range(len(ob))] + [[0]]
             window_list = [temp_obs[:] for _ in range(window)]
 
-            for j_iter in range(max_steps):
+            for _ in range(max_steps):
                 if tree:
                     tree_obs = [sensor for obs in temp_obs[:-1] for sensor in obs]
                     act_tree = controllers.predict([tree_obs])
@@ -137,14 +128,14 @@ class NeuralAgent():
                 total_reward += r_t
                 s_t = s_t1
 
-                # Control prior mixing term
-                if j_iter > 0 and i_episode > 50:
-                    lambda_track = lambda_max * (1 - np.exp(-factor * np.abs(r_t + GAMMA * np.mean(target_q_values[-1] - base_q[-1]))))
-                    lambda_track = np.squeeze(lambda_track)
-                else:
-                    lambda_track = 10.0
-                lambda_store[j_iter] = lambda_track
-                base_q = copy.deepcopy(target_q_values)
+                # # Control prior mixing term
+                # if j_iter > 0 and i_episode > 50:
+                #     lambda_track = lambda_max * (1 - np.exp(-factor * np.abs(r_t + GAMMA * np.mean(target_q_values[-1] - base_q[-1]))))
+                #     lambda_track = np.squeeze(lambda_track)
+                # else:
+                #     lambda_track = 10.0
+                # lambda_store[j_iter] = lambda_track
+                # base_q = copy.deepcopy(target_q_values)
                 
                 if done:
                     break
@@ -152,9 +143,7 @@ class NeuralAgent():
                 raise AssertionError("\"max_steps\" has been reached.")
             
             # self.lambda_mix = np.mean(lambda_store[:(j_iter + 1)])
-            # self.lambda_mix = 1.0 #TODO: change back
-            # self.lambda_mix += (3.5 - 0) / (200 + 100 * 5)
-            self.lambda_mix += (1 - 0.5) / (200 + 100 * 9)
+            self.lambda_mix = 1 + (1 / 50) * (2 ** (0.5 * (ippg_iter + (i_episode + 1) / episode_count)))
 
             logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}, Lambda Mix {self.lambda_mix}")
             logging.info("")
@@ -166,11 +155,8 @@ class NeuralAgent():
 
     def collect_data(self, controllers, tree=False):
         GAMMA = 0.99
-        EXPLORE = 200.0 * MAX_EPISODE_LEN
         max_steps = 2 * MAX_EPISODE_LEN
         done = False
-        epsilon = 1
-        min_epsilon = 0.01
 
         if not tree:
             action_prog = controllers[0]
@@ -206,8 +192,6 @@ class NeuralAgent():
             window_list.pop(0)
             window_list.append(temp_obs[:])
 
-            epsilon -= 1.0 / EXPLORE
-            epsilon = max(epsilon, min_epsilon)
             a_t = self.actor.model.predict(torch.from_numpy(s_t.reshape(1, len(s_t)))).detach().numpy()
             mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(ACTION_DIMS)]
 
@@ -273,7 +257,7 @@ class NeuralAgent():
             
             action_prior = [action_action]
 
-            s_t = np.hstack([[net_obs[:STATE_DIMS]]])
+            s_t = np.hstack([[net_obs[:STATE_DIMS]]], dtype=np.float32)
             a_t = self.actor.model.predict(torch.from_numpy(s_t.reshape(1, STATE_DIMS))).detach().numpy()
             mixed_act = [a_t[0][k_iter] / (1 + self.lambda_mix) + (self.lambda_mix / (1 + self.lambda_mix)) * action_prior[k_iter] for k_iter in range(ACTION_DIMS)]
 
