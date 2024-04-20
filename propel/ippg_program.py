@@ -8,6 +8,7 @@ import argparse
 import random
 import sys
 import os
+import matplotlib.pyplot as plt
 
 import utils
 from controllers import Controller
@@ -95,6 +96,8 @@ def programmatic_game(action):
     logging.info("Finish")
     logging.info("")
 
+    return avg_total_reward
+
 def learn_policy():
     # Define pi_0
     action_prog = Controller([1, 0.05, 50], 0, 0, 0, 2 * np.pi, 0.0, "obs[-1][1][0] > self.para_condition")
@@ -132,9 +135,21 @@ def learn_policy():
 
         action_prog.update_parameters([new_paras["params"][i] for i in ["ap0", "ap1", "ap2"]], new_paras["params"]["apt"], new_paras["params"]["api"], new_paras["params"]["apc"])
 
-        programmatic_game(action_prog)
+        avg_total_reward = programmatic_game(action_prog)
+        plot_x.append(i_iter)
+        plot_y.append(avg_total_reward)
 
     logging.info(f"Final steering controller {action_prog.pid_info()}")
+    logging.info(f"Final plot lists {plot_x} {plot_y}")
+
+    plt.plot(plot_x, plot_y, label="PROPEL")
+    plt.axhline(-157.53552453140503, linestyle="--", label="DDPG")
+    plt.legend()
+    plt.title(f"{ENV_NAME} PROPEL Training")
+    plt.xlabel("Training Iteration")
+    plt.ylabel("Average Total Reward")
+    plt.ylim(top=-100)
+    plt.savefig("run_ippg_program/training_plot")
 
     return None
 

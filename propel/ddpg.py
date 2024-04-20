@@ -6,11 +6,11 @@ import argparse
 import sys
 import os
 import matplotlib.pyplot as plt
-from pendulum import PendulumThetaEnv
 
 from actor_network import ActorNetwork
 from critic_network import CriticNetwork
 from replay_buffer import ReplayBuffer
+from pendulum import PendulumThetaEnv
 
 ENV_NAME = "Pendulum-v1" #TODO: move global variables to config file
 STATE_DIMS = 2
@@ -168,8 +168,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=None)
     parser.add_argument("--mode", default=1, type=int) # 0 - run, 1 - train
-    parser.add_argument("--actormodel", default="run_ddpg/ddpg_actor_weights_periodic.pt")
-    parser.add_argument("--criticmodel", default="run_ddpg/ddpg_critic_weights_periodic.pt")
+    parser.add_argument("--actormodel", default="run_ddpg_final/ddpg_actor_weights_periodic.pt")
+    parser.add_argument("--criticmodel", default="run_ddpg_final/ddpg_critic_weights_periodic.pt")
     parser.add_argument("--logname", default="DDPG")
     args = parser.parse_args()
 
