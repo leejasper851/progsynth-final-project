@@ -1,0 +1,12 @@
+2024-04-20 11:09:29,406 [MainThread  ] [INFO ] Logging started with level: INFO
+2024-04-20 11:09:29,426 [MainThread  ] [INFO ] Pendulum-v1 experiment start
+2024-04-20 11:09:29,426 [MainThread  ] [INFO ] 
+2024-04-20 11:09:29,426 [MainThread  ] [INFO ] Episode 0
+2024-04-20 11:09:29,426 [MainThread  ] [INFO ] Replay Buffer 0
+2024-04-20 11:09:29,426 [MainThread  ] [INFO ] 
+2024-04-20 11:09:30,497 [MainThread  ] [INFO ] Total Reward -1418.1878626095045, Theta 3.752218246459961, Last State [3.7522182 8.       ]
+2024-04-20 11:09:30,497 [MainThread  ] [INFO ] Best Total Reward -1418.1878626095045, Best Theta 6.276801109313965
+2024-04-20 11:09:30,497 [MainThread  ] [INFO ] 
+2024-04-20 11:09:30,497 [MainThread  ] [INFO ] Episode 1
+2024-04-20 11:09:30,497 [MainThread  ] [INFO ] Replay Buffer 200
+2024-04-20 11:09:30,497 [MainThread  ] [INFO ] 

@@ -10,21 +10,13 @@ import matplotlib.pyplot as plt
 from actor_network import ActorNetwork
 from critic_network import CriticNetwork
 from replay_buffer import ReplayBuffer
-from pendulum import PendulumThetaEnv
-
-ENV_NAME = "Pendulum-v1" #TODO: move global variables to config file
-STATE_DIMS = 2
-ACTION_DIMS = 1
-MAX_EPISODE_LEN = 200
-BEST_VAL_IND = 0
-BEST_VAL_MAX = True
-BEST_VAL_NAME = "Theta"
+import globals as glb
 
 def function_OU(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)[0]
 
 def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
-    BUFFER_SIZE = 50 * MAX_EPISODE_LEN
+    BUFFER_SIZE = 50 * glb.MAX_EPISODE_LEN
     BATCH_SIZE = 32
     GAMMA = 0.99
     TAU = 0.001 # Target network hyperparameters
@@ -33,21 +25,24 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
 
     np.random.seed(seeded)
 
-    EXPLORE = 50.0 * MAX_EPISODE_LEN
+    EXPLORE = 50.0 * glb.MAX_EPISODE_LEN
     if train_indicator:
         episode_count = 600
     else:
         episode_count = 1000
-    max_steps = 2 * MAX_EPISODE_LEN
+    max_steps = 2 * glb.MAX_EPISODE_LEN
     epsilon = 1
     min_epsilon = 0
 
-    actor = ActorNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRA)
-    critic = CriticNetwork(STATE_DIMS, ACTION_DIMS, TAU, LRC)
+    actor = ActorNetwork(glb.STATE_DIMS, glb.ACTION_DIMS, TAU, LRA)
+    critic = CriticNetwork(glb.STATE_DIMS, glb.ACTION_DIMS, TAU, LRC)
     buff = ReplayBuffer(BUFFER_SIZE) # Create replay buffer
 
     # Generate an environment
-    env = PendulumThetaEnv(gym.make(ENV_NAME)) #TODO: make more general everywhere
+    if glb.ENV_WRAPPER is None:
+        env = gym.make(glb.ENV_NAME)
+    else:
+        env = glb.ENV_WRAPPER(gym.make(glb.ENV_NAME))
 
     if not train_indicator:
         # Now load the weight
@@ -62,8 +57,8 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
             logging.info("Cannot find the weights")
             exit()
     
-    logging.info(f"{ENV_NAME} experiment start")
-    best_val = float("-inf") if BEST_VAL_MAX else float("inf")
+    logging.info(f"{glb.ENV_NAME} experiment start")
+    best_val = float("-inf") if glb.BEST_VAL_MAX else float("inf")
     best_total_reward = float("-inf")
     avg_total_reward = 0
 
@@ -85,8 +80,8 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         for _ in range(max_steps):
             epsilon -= 1.0 / EXPLORE
             epsilon = max(epsilon, min_epsilon)
-            a_t = np.zeros([1, ACTION_DIMS])
-            noise_t = np.zeros([1, ACTION_DIMS])
+            a_t = np.zeros([1, glb.ACTION_DIMS])
+            noise_t = np.zeros([1, glb.ACTION_DIMS])
 
             a_t_original = actor.model.predict(torch.from_numpy(s_t.reshape(1, len(s_t)))).detach().numpy()
             noise_t[0][0] = train_indicator * max(epsilon, 0) * function_OU(a_t_original[0][0], 0.0, 0.15, 0.2)
@@ -128,7 +123,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
             total_reward += r_t
             s_t = s_t1
 
-            best_val = max(best_val, ob[BEST_VAL_IND]) if BEST_VAL_MAX else min(best_val, ob[BEST_VAL_IND])
+            best_val = max(best_val, ob[glb.BEST_VAL_IND]) if glb.BEST_VAL_MAX else min(best_val, ob[glb.BEST_VAL_IND])
             
             if done:
                 break
@@ -141,8 +136,8 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
         plot_x.append(i_episode)
         plot_y.append(total_reward)
 
-        logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}")
-        logging.info(f"Best Total Reward {best_total_reward}, Best {BEST_VAL_NAME} {best_val}")
+        logging.info(f"Total Reward {total_reward}, {glb.BEST_VAL_NAME} {ob[glb.BEST_VAL_IND]}, Last State {ob}")
+        logging.info(f"Best Total Reward {best_total_reward}, Best {glb.BEST_VAL_NAME} {best_val}")
 
         if train_indicator and i_episode > 20 and i_episode % 5 == 0:
             logging.info("Now we save the model")
@@ -159,7 +154,7 @@ def run_ddpg(amodel, cmodel, train_indicator=0, seeded=1337):
 
     if train_indicator:
         plt.plot(plot_x, plot_y)
-        plt.title(f"{ENV_NAME} DDPG Training")
+        plt.title(f"{glb.ENV_NAME} DDPG Training")
         plt.xlabel("Episode")
         plt.ylabel("Total Reward")
         plt.savefig("run_ddpg/training_plot")

@@ -13,14 +13,7 @@ import matplotlib.pyplot as plt
 import utils
 from controllers import Controller
 from neural_update import NeuralAgent
-from pendulum import PendulumThetaEnv
-
-ENV_NAME = "Pendulum-v1"
-MAX_EPISODE_LEN = 200
-ACTION_MIN = (-2,)
-ACTION_MAX = (2,)
-BEST_VAL_IND = 0
-BEST_VAL_NAME = "Theta"
+import globals as glb
 
 class ParameterFinder():
     def __init__(self, inputs, actions, action_prog):
@@ -32,7 +25,7 @@ class ParameterFinder():
         self.action.update_parameters([ap0, ap1, ap2], apt, api, apc)
         action_acts = []
         for window_list in self.inputs:
-            action_acts.append(utils.clip_to_range(self.action.pid_execute(window_list), ACTION_MIN[0], ACTION_MAX[0]))
+            action_acts.append(utils.clip_to_range(self.action.pid_execute(window_list), glb.ACTION_MIN[0], glb.ACTION_MAX[0]))
         action_diff = spatial.distance.euclidean(action_acts, np.array(self.actions)[:, 0])
         diff_total = -action_diff / float(len(self.actions))
         return diff_total
@@ -50,13 +43,16 @@ class ParameterFinder():
 def programmatic_game(action):
     episode_count = 1000
     log_episode_count = 5
-    max_steps = 2 * MAX_EPISODE_LEN
+    max_steps = 2 * glb.MAX_EPISODE_LEN
     window = 5
 
     # Generate an environment
-    env = PendulumThetaEnv(gym.make(ENV_NAME))
+    if glb.ENV_WRAPPER is None:
+        env = gym.make(glb.ENV_NAME)
+    else:
+        env = glb.ENV_WRAPPER(gym.make(glb.ENV_NAME))
 
-    logging.info(f"{ENV_NAME} experiment start with priors")
+    logging.info(f"{glb.ENV_NAME} experiment start with priors")
     logging.info(f"Steering controller {action.pid_info()}")
     avg_total_reward = 0
     for i_episode in range(episode_count):
@@ -67,7 +63,7 @@ def programmatic_game(action):
         window_list = [temp_obs[:] for _ in range(window)]
 
         for _ in range(max_steps):
-            action_action = utils.clip_to_range(action.pid_execute(window_list), ACTION_MIN[0], ACTION_MAX[0])
+            action_action = utils.clip_to_range(action.pid_execute(window_list), glb.ACTION_MIN[0], glb.ACTION_MAX[0])
             action_prior = [action_action]
 
             temp_obs = [[ob[i]] for i in range(len(ob))] + [action_prior]
@@ -87,7 +83,7 @@ def programmatic_game(action):
         avg_total_reward += total_reward
 
         if i_episode < log_episode_count:
-            logging.info(f"Total Reward {total_reward}, {BEST_VAL_NAME} {ob[BEST_VAL_IND]}, Last State {ob}")
+            logging.info(f"Total Reward {total_reward}, {glb.BEST_VAL_NAME} {ob[glb.BEST_VAL_IND]}, Last State {ob}")
             logging.info("")
 
     env.close() # This is for shutting down the environment
@@ -122,7 +118,7 @@ def learn_policy():
         for _ in range(5):
             observation_list, _ = nn_agent.collect_data([action_prog])
             all_observations += observation_list
-        all_observations = all_observations[(-25 * MAX_EPISODE_LEN):]
+        all_observations = all_observations[(-25 * glb.MAX_EPISODE_LEN):]
         # Relabel observations
         _, _, all_actions = nn_agent.label_data([action_prog], all_observations)
 
@@ -143,12 +139,12 @@ def learn_policy():
     logging.info(f"Final plot lists {plot_x} {plot_y}")
 
     plt.plot(plot_x, plot_y, label="PROPEL")
-    plt.axhline(-157.53552453140503, linestyle="--", label="DDPG")
+    # plt.axhline(-157.53552453140503, linestyle="--", label="DDPG")
     plt.legend()
-    plt.title(f"{ENV_NAME} PROPEL Training")
+    plt.title(f"{glb.ENV_NAME} PROPEL Training")
     plt.xlabel("Training Iteration")
     plt.ylabel("Average Total Reward")
-    plt.ylim(top=-100)
+    # plt.ylim(top=-100)
     plt.savefig("run_ippg_program/training_plot")
 
     return None
