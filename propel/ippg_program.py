@@ -120,7 +120,7 @@ def learn_policy():
             all_observations += observation_list
         all_observations = all_observations[(-25 * glb.MAX_EPISODE_LEN):]
         # Relabel observations
-        _, _, all_actions = nn_agent.label_data([action_prog], all_observations)
+        all_actions = nn_agent.label_data([action_prog], all_observations)
 
         # Learn new programmatic policy
         param_finder = ParameterFinder(all_observations, all_actions, action_prog)
